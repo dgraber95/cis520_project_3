@@ -15,6 +15,9 @@ lib_SRC += lib/string.c			# String functions.
 lib_SRC += lib/arithmetic.c		# 64-bit arithmetic for GCC.
 lib_SRC += lib/ustar.c			# Unix standard tar format utilities.
 
+vm_SRC  = vm/page.c
+vm_SRC += vm/swap.c
+
 # User level only library code.
 lib/user_SRC  = lib/user/debug.c	# Debug helpers.
 lib/user_SRC += lib/user/syscall.c	# System calls.
