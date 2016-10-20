@@ -9,13 +9,14 @@ struct list file_mappings_table;
 
 struct sup_page
 {
+  bool dirty_bit;
+  void* virtual_page;
 
   struct list_elem elem;
 };
 
 struct frame
 {
-  bool free;
   void* addr;
   struct sup_page* page;
 
@@ -30,5 +31,5 @@ struct file_mapping
 
 
 void init(void);
-void* create_frame(struct sup_page* page);
+void* create_frame(uint8_t page);
 void free_frame(void* addr);

@@ -19,6 +19,7 @@
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
 #include "threads/synch.h"
+#include "vm/page.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -429,14 +430,14 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
       /* Get a page of memory. */
-      uint8_t *kpage = palloc_get_page (PAL_USER);
+      uint8_t *kpage = create_frame (PAL_USER);
       if (kpage == NULL)
         return false;
 
       /* Load this page. */
       if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
         {
-          palloc_free_page (kpage);
+          free_frame (kpage);
           return false; 
         }
       memset (kpage + page_read_bytes, 0, page_zero_bytes);
@@ -444,7 +445,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       /* Add the page to the process's address space. */
       if (!install_page (upage, kpage, writable)) 
         {
-          palloc_free_page (kpage);
+          free_frame (kpage);
           return false; 
         }
 
@@ -463,7 +464,7 @@ setup_stack (void **esp, char *args_string)
 {
   uint8_t *kpage;
   // Allocate page and ensure no errors occurred
-  if ((kpage = palloc_get_page(PAL_USER | PAL_ZERO)) == NULL) 
+  if ((kpage = create_frame(PAL_USER | PAL_ZERO)) == NULL) 
   {
     return false;
   }
@@ -471,7 +472,7 @@ setup_stack (void **esp, char *args_string)
   // If unable to add to user address space, we cannot set up the stack
   if (!install_page(((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true))
   {
-    palloc_free_page (kpage);
+    free_frame (kpage);
     return false; 
   }
 

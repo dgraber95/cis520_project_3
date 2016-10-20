@@ -8,10 +8,6 @@
 #include "threads/malloc.h"
 #include "lib/kernel/list.h"
 
-void init(void);
-void* create_frame(struct sup_page* page);
-void free_frame(void* addr);
-
 void init(void)
 {
   list_init(&sup_page_table);
@@ -19,14 +15,14 @@ void init(void)
   list_init(&file_mappings_table);
 }
 
-void* create_frame(struct sup_page* page)
+void* create_frame(uint8_t page)
 {
-  void* addr = palloc_get_page(PAL_USER);
+  void* addr = palloc_get_page(page);
   if (addr != NULL)
   {
     struct frame* frm = malloc(sizeof(struct frame));
     frm->addr = addr;
-    frm->page = page;
+    //frm->page = page;
     list_push_back(&frame_table, &frm->elem);
   }
 
