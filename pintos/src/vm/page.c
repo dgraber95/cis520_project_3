@@ -8,16 +8,16 @@
 #include "threads/malloc.h"
 #include "lib/kernel/list.h"
 
-void init(void)
+void frame_init(void)
 {
   list_init(&sup_page_table);
   list_init(&frame_table);
   list_init(&file_mappings_table);
 }
 
-void* create_frame(uint8_t page)
+void* create_frame()
 {
-  void* addr = palloc_get_page(page);
+  void* addr = palloc_get_page(PAL_USER);
   if (addr != NULL)
   {
     struct frame* frm = malloc(sizeof(struct frame));

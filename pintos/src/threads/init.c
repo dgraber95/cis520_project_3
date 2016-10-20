@@ -36,6 +36,7 @@
 #include "devices/ide.h"
 #include "filesys/filesys.h"
 #include "filesys/fsutil.h"
+#include "vm/page.h"
 #endif
 
 /* Page directory with kernel mappings only. */
@@ -98,6 +99,7 @@ main (void)
   palloc_init (user_page_limit);
   malloc_init ();
   paging_init ();
+  frame_init();
 
   /* Segmentation. */
 #ifdef USERPROG

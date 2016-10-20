@@ -30,6 +30,6 @@ struct file_mapping
 };
 
 
-void init(void);
-void* create_frame(uint8_t page);
+void frame_init(void);
+void* create_frame();
 void free_frame(void* addr);
