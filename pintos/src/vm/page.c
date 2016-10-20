@@ -18,3 +18,20 @@ void* create_frame(struct* sup_page page)
     list_push_back(&frame_table, frame->elem);
   }
 }
+
+void* free_frame(void* addr)
+{
+  bool found = FALSE;
+  struct list_elem* e= list_begin(&frame_table)
+  while (!found && e != list_end(&frame_table))
+  {
+    struct frame* frm = list_entry(e, struct frame, elem);
+    if (frm->addr == addr)
+    {
+      list_remove(e);
+      free(frm);
+      palloc_free_page(addr);
+      found = TRUE;
+    }
+  }
+}

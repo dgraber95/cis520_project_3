@@ -1,4 +1,4 @@
-
+#include "lib/kernal/list.h"
 
 struct list sup_page_table;
 struct list frame_table;
