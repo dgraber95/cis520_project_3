@@ -6,10 +6,11 @@
 #include "page.h"
 #include "threads/palloc.h"
 #include "threads/malloc.h"
+#include "lib/kernel/list.h"
 
 void init(void);
 void* create_frame(struct sup_page* page);
-void* free_frame(void* addr);
+void free_frame(void* addr);
 
 void init(void)
 {
@@ -26,16 +27,16 @@ void* create_frame(struct sup_page* page)
     struct frame* frm = malloc(sizeof(struct frame));
     frm->addr = addr;
     frm->page = page;
-    list_push_back(&frame_table, frm->elem);
+    list_push_back(&frame_table, &frm->elem);
   }
 
-return addr;
+  return addr;
 }
 
-void* free_frame(void* addr)
+void free_frame(void* addr)
 {
   bool found = 0;
-  struct list_elem* e= list_begin(&frame_table);
+  struct list_elem* e = list_begin(&frame_table);
 
   while (!found && e != list_end(&frame_table))
   {
@@ -47,8 +48,7 @@ void* free_frame(void* addr)
       palloc_free_page(addr);
       found = 1;
     }
-    e = list_next(e);
+    else
+      e = list_next(e);
   }
-
-return addr;
 }
