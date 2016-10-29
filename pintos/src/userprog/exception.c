@@ -5,6 +5,7 @@
 #include "userprog/syscall.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "vm/page.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -126,10 +127,14 @@ kill (struct intr_frame *f)
 static void
 page_fault (struct intr_frame *f) 
 {
-  bool not_present;  /* True: not-present page, false: writing r/o page. */
-  bool write;        /* True: access was write, false: access was read. */
-  bool user;         /* True: access by user, false: access by kernel. */
-  void *fault_addr;  /* Fault address. */
+  bool not_present;           /* True: not-present page, false: writing r/o page. */
+  bool write;                 /* True: access was write, false: access was read.  */
+  bool user;                  /* True: access by user, false: access by kernel.   */
+  void *fault_addr;           /* Fault address.                                   */
+  void *f_addr_page;          /* Address of page fault address is in              */
+  struct sup_page* sup_page   /* Supplemental page table entry for fault address  */
+  uint8_t *kpage              /* Frame for page causing fault                     */
+
 
   /* Obtain faulting address, the virtual address that was
      accessed to cause the fault.  It may point to code or to
@@ -155,11 +160,37 @@ page_fault (struct intr_frame *f)
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
-  printf ("Page fault at %p: %s error %s page in %s context.\n",
-          fault_addr,
-          not_present ? "not present" : "rights violation",
-          write ? "writing" : "reading",
-          user ? "user" : "kernel");
-  kill (f);
+  // OLD IMPLEMENTATION:
+  // printf ("Page fault at %p: %s error %s page in %s context.\n",
+  //         fault_addr,
+  //         not_present ? "not present" : "rights violation",
+  //         write ? "writing" : "reading",
+  //         user ? "user" : "kernel");
+  // kill (f);
+
+  /********** Project 3 implementation  *********/
+
+  /* if user process is trying to access kernel virtual memory,
+     trying to access outside of its virtual memory, 
+     or if trying to write to r/o page, kill process              */
+  f_addr_page = pagedir_get_page(thread_current()->pagedir, fault_addr);
+  if((user && is_kernel_vaddr(fault_addr)) || !not_present || f_addr_page == NULL)
+  {
+    kill(f);
+    return;
+  }
+
+  // get supplemental page table entry
+  sup_page = get_sup_page(f_addr_page);
+  if(sup_page == NULL )
+  {
+    kill(f);
+    return;
+  }
+
+  // swap the page into a free frame
+  frame_swap(sup_page);
+  return;
+  /********** Project 3 implementation  *********/
 }
 

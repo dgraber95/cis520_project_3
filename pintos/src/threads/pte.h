@@ -89,6 +89,11 @@ static inline uint32_t pte_create_kernel (void *page, bool writable) {
   return vtop (page) | PTE_P | (writable ? PTE_W : 0);
 }
 
+/* Returns true if the given page is read only */
+static inline bool pte_get_read_only (void *page) {
+  return (bool)(vtop (page) & PTE_W);
+}
+
 /* Returns a PTE that points to PAGE.
    The PTE's page is readable.
    If WRITABLE is true then it will be writable as well.
