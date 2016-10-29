@@ -17,7 +17,10 @@ void frame_init(void)
 
 void* create_frame()
 {
+  // Attempt to allocate frame from user pool
   void* addr = palloc_get_page(PAL_USER);
+
+  // We obtained a free page; add to frame table
   if (addr != NULL)
   {
     struct frame* frm = malloc(sizeof(struct frame));
@@ -25,26 +28,37 @@ void* create_frame()
     //frm->page = page;
     list_push_back(&frame_table, &frm->elem);
   }
+  // No free frames: evict one
+  else
+  {
+    // Panic the kernel for now
+    ASSERT(addr != NULL);
+  }
 
   return addr;
 }
 
 void free_frame(void* addr)
 {
-  bool found = 0;
+  // Get first element in frame table
   struct list_elem* e = list_begin(&frame_table);
 
-  while (!found && e != list_end(&frame_table))
+  // Iterate through frame table
+  while (e != list_end(&frame_table))
   {
+    // Obtain frame* from current iteration
     struct frame* frm = list_entry(e, struct frame, elem);
+
+    // Found the corresponding frame: free it
     if (frm->addr == addr)
     {
       list_remove(e);
-      free(frm);
       palloc_free_page(addr);
-      found = 1;
+      free(frm);
+      return;
     }
-    else
-      e = list_next(e);
+
+    // Move to next element
+    e = list_next(e);
   }
 }
