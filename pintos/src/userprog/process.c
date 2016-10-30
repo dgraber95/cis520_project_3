@@ -430,7 +430,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
       /* Get a page of memory. */
-      uint8_t *kpage = create_frame ();
+      uint8_t *kpage = frame_alloc ();
       if (kpage == NULL)
         return false;
 
@@ -464,7 +464,7 @@ setup_stack (void **esp, char *args_string)
 {
   uint8_t *kpage;
   // Allocate page and ensure no errors occurred
-  if ((kpage = create_frame()) == NULL) 
+  if ((kpage = frame_alloc()) == NULL) 
   {
     return false;
   }
