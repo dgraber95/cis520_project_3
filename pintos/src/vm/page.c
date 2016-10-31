@@ -103,12 +103,32 @@ struct frame * frame_get(void * addr)
 
 static struct frame * frame_get_next_eviction_candidate(void)
 {
-  // TODO: actually pick a reasonable eviction candidate
+  struct frame* frm;
+  struct frame* class1 = NULL;
+  struct frame* class2 = NULL;
+  
+  for (struct list_elem* e = list_begin(&frame_table); e != list_end(&frame_table); e = list_next(e))
+  {
+      frm = list_entry(e, struct frame, elem);
 
-  // For now, just pick the first frame and cycle it to the back
-  struct list_elem * e = list_pop_front(&frame_table);
-  list_push_back(&frame_table, e);
-  return list_entry(e, struct frame, elem);
+      if( !pagedir_is_accessed(frm->addr, frm->sup_page->addr) &&
+          !pagedir_is_dirty(frm->addr, frm->sup_page->addr) )
+        return frm;
+      else if ( (class1 != NULL) && 
+                !pagedir_is_accessed(frm->addr, frm->sup_page->addr) )
+        class1 = frm;
+      else if ( (class1 != NULL) && 
+                (class2 != NULL) && 
+                !pagedir_is_dirty(frm->addr, frm->sup_page->addr) )
+        class2 = frm;
+  }
+
+  if (class1)
+    return class1;
+  else if (class2)
+    return class2;
+  else 
+    return frm;
 }
 
 static void frame_load(struct frame * frm, struct sup_page * page)
@@ -134,12 +154,13 @@ static void frame_evict(struct frame * frm)
   struct sup_page * evicted_page = frm->sup_page;
 
   //Check if current page is dirty
-  if(sup_page_dirty(evicted_page))
+  if(pagedir_is_dirty(frm->addr, evicted_page->addr))
   {
     sup_page_backup(evicted_page);
   }
 
-  //TODO: Mark old page as "not in a frame" or "evicted"
+  // Mark old page as not present so subsequent accesses will trigger page fault
+  pagedir_clear_page(thread_current()->pagedir, evicted_page->addr);
 }
 
 void frame_swap(struct sup_page * new_page)
