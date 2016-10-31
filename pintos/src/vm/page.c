@@ -146,7 +146,9 @@ static void frame_load(struct frame * frm, struct sup_page * page)
 
   }
 
-  //TODO: Mark page as "in a frame"
+  // Map page into user's virtual memory
+  //TODO: figure out if page is actually writable
+  pagedir_set_page(thread_current()->pagedir, new_page->addr, frm->addr, true);
 }
 
 static void frame_evict(struct frame * frm)
@@ -174,10 +176,6 @@ void frame_swap(struct sup_page * new_page)
 
   // Fetch page into actual memory space
   frame_load(frm, new_page);
-
-  // Map page into user's virtual memory
-  //TODO: figure out if page is actually writable
-  pagedir_set_page(thread_current()->pagedir, new_page->addr, frm->addr, true);
 }
 
 static struct sup_page * sup_page_create(void * addr)
