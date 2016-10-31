@@ -2,9 +2,12 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include "userprog/gdt.h"
+#include "userprog/pagedir.h"
 #include "userprog/syscall.h"
 #include "threads/interrupt.h"
+#include "threads/pte.h"
 #include "threads/thread.h"
+#include "threads/vaddr.h"
 #include "vm/page.h"
 
 /* Number of page faults processed. */
@@ -132,8 +135,7 @@ page_fault (struct intr_frame *f)
   bool user;                  /* True: access by user, false: access by kernel.   */
   void *fault_addr;           /* Fault address.                                   */
   void *f_addr_page;          /* Address of page fault address is in              */
-  struct sup_page* sup_page   /* Supplemental page table entry for fault address  */
-  uint8_t *kpage              /* Frame for page causing fault                     */
+  struct sup_page* sup_page;  /* Supplemental page table entry for fault address  */
 
 
   /* Obtain faulting address, the virtual address that was
@@ -180,9 +182,10 @@ page_fault (struct intr_frame *f)
     return;
   }
 
-  // get supplemental page table entry
+  /* get supplemental page table entry. If sup page is invalid, 
+  or if we are trying to write to a r/o page, invalid access      */
   sup_page = get_sup_page(f_addr_page);
-  if(sup_page == NULL )
+  if(sup_page == NULL || (pte_get_read_only(f_addr_page) && write))
   {
     kill(f);
     return;

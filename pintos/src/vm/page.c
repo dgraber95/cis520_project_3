@@ -20,7 +20,7 @@ void frame_init(void)
   list_init(&file_mappings_table);
 }
 
-void * frame_alloc()
+void * frame_alloc(void)
 {
   // Attempt to allocate frame from user pool
   void * addr = palloc_get_page(PAL_USER);
