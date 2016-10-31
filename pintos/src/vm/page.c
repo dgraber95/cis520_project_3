@@ -106,20 +106,21 @@ static struct frame * frame_get_next_eviction_candidate(void)
   struct frame* frm;
   struct frame* class1 = NULL;
   struct frame* class2 = NULL;
-  
+  uint32_t* pd = thread_current()->pagedir;  
+
   for (struct list_elem* e = list_begin(&frame_table); e != list_end(&frame_table); e = list_next(e))
   {
       frm = list_entry(e, struct frame, elem);
 
-      if( !pagedir_is_accessed(frm->addr, frm->sup_page->addr) &&
-          !pagedir_is_dirty(frm->addr, frm->sup_page->addr) )
+      if( !pagedir_is_accessed(pd, frm->sup_page->addr) &&
+          !pagedir_is_dirty(pd, frm->sup_page->addr) )
         return frm;
       else if ( (class1 != NULL) && 
-                !pagedir_is_accessed(frm->addr, frm->sup_page->addr) )
+                !pagedir_is_accessed(pd, frm->sup_page->addr) )
         class1 = frm;
       else if ( (class1 != NULL) && 
                 (class2 != NULL) && 
-                !pagedir_is_dirty(frm->addr, frm->sup_page->addr) )
+                !pagedir_is_dirty(pd, frm->sup_page->addr) )
         class2 = frm;
   }
 
