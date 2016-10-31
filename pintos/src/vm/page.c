@@ -6,12 +6,19 @@
 #include "page.h"
 #include "threads/palloc.h"
 #include "threads/malloc.h"
+#include "threads/thread.h"
+#include "threads/vaddr.h"
 #include "lib/kernel/list.h"
 
-static struct frame * create_frame(void * addr);
+static struct frame * frame_create(void * addr);
+static struct frame * frame_get_next_eviction_candidate(void);
+static void frame_load(struct frame * frm, struct sup_page * page);
+static void frame_evict(struct frame * frm);
 
-static struct sup_page * create_sup_page(void * addr);
-static void free_sup_page(void * addr);
+static struct sup_page * sup_page_create(void * addr);
+static void sup_page_free(void * addr);
+static bool sup_page_dirty(struct sup_page * page);
+static void sup_page_backup(struct sup_page * page);
 
 void frame_init(void)
 {
@@ -20,7 +27,7 @@ void frame_init(void)
   list_init(&file_mappings_table);
 }
 
-void * frame_alloc()
+void * frame_alloc(void)
 {
   // Attempt to allocate frame from user pool
   void * addr = palloc_get_page(PAL_USER);
@@ -29,7 +36,7 @@ void * frame_alloc()
   if (addr != NULL)
   {
     // Create frame and add to frame table
-    struct frame * frm = create_frame(addr);
+    struct frame * frm = frame_create(addr);
     return frm->addr;
   }
   // No free frames: evict one
@@ -40,7 +47,7 @@ void * frame_alloc()
   // Search the sup page table for addr, if we find it, point the frame to that entry, otherwise, create a new one
 }
 
-static struct frame * create_frame(void * addr)
+static struct frame * frame_create(void * addr)
 {
   // Create new struct frame
   ASSERT(addr != NULL);
@@ -48,7 +55,7 @@ static struct frame * create_frame(void * addr)
 
   // Initialize frame
   frm->addr = addr;
-  frm->sup_page = create_sup_page(addr);
+  frm->sup_page = sup_page_create(addr);
 
   // Add to frame table
   list_push_back(&frame_table, &frm->elem);
@@ -66,7 +73,7 @@ void free_frame(void * addr)
   list_remove(&frm->elem);
 
   // Free the sup page referenced in this frame
-  free_sup_page(&frm->sup_page);
+  sup_page_free(&frm->sup_page);
 
   // Free actual space allocated for frame
   palloc_free_page(addr);
@@ -94,13 +101,64 @@ struct frame * frame_get(void * addr)
     return NULL;
 }
 
-void frame_swap(struct sup_page * page)
+static struct frame * frame_get_next_eviction_candidate(void)
 {
-  //TODO: implement swap
-  
+  // TODO: actually pick a reasonable eviction candidate
+
+  // For now, just pick the first frame and cycle it to the back
+  struct list_elem * e = list_pop_front(&frame_table);
+  list_push_back(&frame_table, e);
+  return list_entry(e, struct frame, elem);
 }
 
-static struct sup_page * create_sup_page(void * addr)
+static void frame_load(struct frame * frm, struct sup_page * page)
+{
+  // No data to load: zero out frame's space
+  if(page->addr == NULL)
+  {
+    memset(frm->addr, 0, PGSIZE);
+  }
+
+  //TODO: load from swap or file
+  else
+  {
+
+  }
+
+  //TODO: Mark page as "in a frame"
+}
+
+static void frame_evict(struct frame * frm)
+{
+  // Local variable
+  struct sup_page * evicted_page = frm->sup_page;
+
+  //Check if current page is dirty
+  if(sup_page_dirty(evicted_page))
+  {
+    sup_page_backup(evicted_page);
+  }
+
+  //TODO: Mark old page as "not in a frame" or "evicted"
+}
+
+void frame_swap(struct sup_page * new_page)
+{
+  // Get eviction candidate
+  struct frame * frm = frame_get_next_eviction_candidate();
+
+  // Kick current page out of frame
+  frame_evict(frm);
+
+  // Fetch page into actual memory space
+  frame_load(frm, new_page);
+
+  // Map page into user's virtual memory
+  //TODO: figure out if page is actually writable
+  pagedir_set_page(thread_current()->pagedir, new_page->addr, frm->addr, true);
+}
+
+static struct sup_page * sup_page_create(void * addr)
 {
   // Create new struct sup_page
   ASSERT(addr != NULL);
@@ -115,11 +173,11 @@ static struct sup_page * create_sup_page(void * addr)
   return sp;
 }
 
-static void free_sup_page(void * addr)
+static void sup_page_free(void * addr)
 {
   // Get the sup_page table entry corresponding to this address
   ASSERT(addr != NULL);
-  struct sup_page * sp = get_sup_page(addr);
+  struct sup_page * sp = sup_page_get(addr);
   ASSERT(sp != NULL);
 
   // Remove from list and free resources
@@ -127,7 +185,7 @@ static void free_sup_page(void * addr)
   free(sp);
 }
 
-struct sup_page * get_sup_page(void * addr)
+struct sup_page * sup_page_get(void * addr)
 {
   // Local variables
   struct list_elem * e;
@@ -146,4 +204,16 @@ struct sup_page * get_sup_page(void * addr)
 
     // Unable to find the addr specified
     return NULL;
+}
+
+static bool sup_page_dirty(struct sup_page * page)
+{
+  ASSERT(page != NULL);
+  return pagedir_is_dirty(thread_current()->pagedir, page->addr);
+}
+
+static void sup_page_backup(struct sup_page * page)
+{
+  ASSERT(page != NULL);
+  // TODO: write the page out to its backing store
 }
