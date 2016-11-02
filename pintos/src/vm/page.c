@@ -10,7 +10,9 @@
 #include "threads/vaddr.h"
 #include "lib/kernel/list.h"
 
-static struct frame * frame_create(void * addr);
+typedef int mapid_t;
+
+struct frame * frame_create(void * addr);
 static struct frame * frame_get_next_eviction_candidate(void);
 static void frame_load(struct frame * frm, struct sup_page * page);
 static void frame_evict(struct frame * frm);
@@ -26,6 +28,7 @@ void frame_init(void)
   list_init(&sup_page_table);
   list_init(&frame_table);
   list_init(&file_mappings_table);
+  next_map_id = 0;
 }
 
 void * frame_alloc(void)
@@ -48,7 +51,7 @@ void * frame_alloc(void)
   // Search the sup page table for addr, if we find it, point the frame to that entry, otherwise, create a new one
 }
 
-static struct frame * frame_create(void * addr)
+struct frame * frame_create(void * addr)
 {
   // Create new struct frame
   ASSERT(addr != NULL);
@@ -244,4 +247,29 @@ static void sup_page_backup(struct sup_page * page)
 {
   ASSERT(page != NULL);
   // TODO: write the page out to its backing store
+}
+
+mapid_t map_file(int fd)
+{
+  struct file_mapping* fm = malloc(sizeof(struct file_mapping));
+  fm->fd = fd;
+  fm->map_id = next_map_id++;
+  list_push_back(&file_mappings_table, &fm->elem);
+}
+
+void unmap_file(mapid_t map_id)
+{
+  struct list_elem* e;
+  struct file_mapping* fm;
+
+  for ( e = list_begin(&file_mappings_table);
+        e != list_end(&file_mappings_table);
+        e = list_next(e) )
+  {
+    fm = list_entry(e, struct file_mapping, elem);
+    if (map_id == fm->map_id)
+    {
+      list_remove(&fm->elem);
+    }
+  }
 }

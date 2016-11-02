@@ -13,6 +13,7 @@
 #include "threads/vaddr.h"
 #include "userprog/pagedir.h"
 #include "userprog/syscall.h"
+#include "vm/page.h"
 
 #define EXECUTABLE_START (void *)0x08048000
 
@@ -28,6 +29,7 @@ struct process_file
 static void syscall_handler (struct intr_frame *);
 
 typedef int pid_t;
+typedef int mapid_t;
 
 static void sys_halt(void);
 static pid_t sys_exec(const char* cmd_line);
@@ -41,6 +43,8 @@ static int sys_write(int fd, const void* buffer, unsigned size);
 static void sys_seek(int fd, unsigned position);
 static unsigned sys_tell(int fd);
 static void sys_close(int fd);
+static mapid_t sys_mmap (int fd, void* addr);
+static void sys_munmap(mapid_t mapping);
 
 
 static void * create_kernel_ptr(const void* ptr);
@@ -113,6 +117,12 @@ syscall_handler (struct intr_frame *f UNUSED)
       get_args(f, args, 1);
       sys_close(args[0]);
       break;
+    case SYS_MMAP:
+      get_args(f, args, 2);
+      f->eax = sys_mmap(args[0], (void *)args[1]);
+    case SYS_MUNMAP:
+      get_args(f, args, 1);
+      sys_munmap(args[0]);
     default:
       sys_exit(-1);
   }
@@ -462,4 +472,15 @@ static void sys_close(int fd)
   list_remove(&pf->elem);
   lock_release(&pf->file_lock);
   free(pf);
+}
+
+static mapid_t sys_mmap (int fd, void* addr)
+{
+  struct frame* frm = frame_create(addr);
+  return map_file(fd);
+}
+
+static void sys_munmap(mapid_t mapping)
+{
+  unmap_file(mapping);
 }
