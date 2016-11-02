@@ -18,6 +18,7 @@ static void frame_evict(struct frame * frm);
 static struct sup_page * sup_page_create(void * addr);
 static void sup_page_free(void * addr);
 static bool sup_page_dirty(struct sup_page * page);
+static bool sup_page_accessed(struct sup_page * page);
 static void sup_page_backup(struct sup_page * page);
 
 void frame_init(void)
@@ -106,21 +107,22 @@ static struct frame * frame_get_next_eviction_candidate(void)
   struct frame* frm;
   struct frame* class1 = NULL;
   struct frame* class2 = NULL;
-  uint32_t* pd = thread_current()->pagedir;  
 
-  for (struct list_elem* e = list_begin(&frame_table); e != list_end(&frame_table); e = list_next(e))
+  for ( struct list_elem* e = list_begin(&frame_table); 
+        e != list_end(&frame_table); 
+        e = list_next(e) )
   {
       frm = list_entry(e, struct frame, elem);
 
-      if( !pagedir_is_accessed(pd, frm->sup_page->addr) &&
-          !pagedir_is_dirty(pd, frm->sup_page->addr) )
+      if( !sup_page_accessed(frm->sup_page) &&
+          !sup_page_dirty(frm->sup_page) )
         return frm;
-      else if ( (class1 != NULL) && 
-                !pagedir_is_accessed(pd, frm->sup_page->addr) )
+      else if ( (class1 == NULL) && 
+                !sup_page_accessed(frm->sup_page) )
         class1 = frm;
-      else if ( (class1 != NULL) && 
-                (class2 != NULL) && 
-                !pagedir_is_dirty(pd, frm->sup_page->addr) )
+      else if ( (class1 == NULL) && 
+                (class2 == NULL) && 
+                !sup_page_dirty(frm->sup_page) )
         class2 = frm;
   }
 
@@ -148,7 +150,7 @@ static void frame_load(struct frame * frm, struct sup_page * page)
 
   // Map page into user's virtual memory
   //TODO: figure out if page is actually writable
-  pagedir_set_page(thread_current()->pagedir, new_page->addr, frm->addr, true);
+  pagedir_set_page(thread_current()->pagedir, page->addr, frm->addr, true);
 }
 
 static void frame_evict(struct frame * frm)
@@ -157,7 +159,7 @@ static void frame_evict(struct frame * frm)
   struct sup_page * evicted_page = frm->sup_page;
 
   //Check if current page is dirty
-  if(pagedir_is_dirty(frm->addr, evicted_page->addr))
+  if(sup_page_dirty(evicted_page))
   {
     sup_page_backup(evicted_page);
   }
@@ -230,6 +232,12 @@ static bool sup_page_dirty(struct sup_page * page)
 {
   ASSERT(page != NULL);
   return pagedir_is_dirty(thread_current()->pagedir, page->addr);
+}
+
+static bool sup_page_accessed(struct sup_page * page)
+{
+  ASSERT(page != NULL);
+  return pagedir_is_accessed(thread_current()->pagedir, page->addr);
 }
 
 static void sup_page_backup(struct sup_page * page)
