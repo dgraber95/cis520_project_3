@@ -1,39 +1,50 @@
-#include "lib/kernel/list.h"
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
+#ifndef VM_PAGE_H
+#define VM_PAGE_H
 
-struct list sup_page_table;
-struct list frame_table;
-struct list file_mappings_table;
+#include <hash.h>
+#include "devices/block.h"
+#include "filesys/off_t.h"
+#include "threads/synch.h"
 
-struct sup_page
-{
-  void * addr;                    // user virtual address
+/* Virtual page. */
+struct page 
+  {
+    /* Immutable members. */
+    void *addr;                 /* User virtual address. */
+    bool read_only;             /* Read-only page? */
+    struct thread *thread;      /* Owning thread. */
 
-  struct list_elem elem;
-};
+    /* Accessed only in owning process context. */
+    struct hash_elem hash_elem; /* struct thread `pages' hash element. */
 
-struct frame
-{
-  void * addr;                    // physical address
-  struct sup_page * sup_page;
+    /* Set only in owning process context with frame->frame_lock held.
+       Cleared only with scan_lock and frame->frame_lock held. */
+    struct frame *frame;        /* Page frame. */
 
-  struct list_elem elem;
-};
+    /* Swap information, protected by frame->frame_lock. */
+    block_sector_t sector;       /* Starting sector of swap area, or -1. */
+    
+    /* Memory-mapped file information, protected by frame->frame_lock. */
+    bool private;               /* False to write back to file,
+                                   true to write back to swap. */
+    struct file *file;          /* File. */
+    off_t file_offset;          /* Offset in file. */
+    off_t file_bytes;           /* Bytes to read/write, 1...PGSIZE. */
+  };
 
-struct file_mapping
-{
+void page_exit (void);
 
-  struct list_elem elem;
-};
+struct page *page_allocate (void *, bool read_only);
+void page_deallocate (void *vaddr);
 
+bool page_in (void *fault_addr);
+bool page_out (struct page *);
+bool page_accessed_recently (struct page *);
 
-void frame_init(void);
+bool page_lock (const void *, bool will_write);
+void page_unlock (const void *);
 
-void * frame_alloc(void);
-void free_frame(void* addr);
-struct frame * frame_get(void * addr);
-void frame_swap(struct sup_page * page);
+hash_hash_func page_hash;
+hash_less_func page_less;
 
-struct sup_page * sup_page_get(void * addr);
+#endif /* vm/page.h */

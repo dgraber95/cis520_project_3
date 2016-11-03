@@ -1,9 +1,11 @@
-#include "lib/kernel/list.h"
+#ifndef VM_SWAP_H
+#define VM_SWAP_H 1
 
-struct list swap_table;
+#include <stdbool.h>
 
-struct swap
-{
+struct page;
+void swap_init (void);
+void swap_in (struct page *);
+bool swap_out (struct page *);
 
-  struct list_elem elem;
-};
+#endif /* vm/swap.h */
