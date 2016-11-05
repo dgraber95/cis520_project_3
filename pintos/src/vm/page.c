@@ -51,9 +51,10 @@ page_for_addr (const void *address)
         return hash_entry (e, struct page, hash_elem);
 
       /* No page.  Expand stack? */
-
-/* add code */
-
+      struct thread* cur_thread = thread_current();
+      if (address >= PHYS_BASE - STACK_MAX
+        && address >= cur_thread->user_esp - 32)
+        return page_allocate ((void *) address, false);
     }
   return NULL;
 }
