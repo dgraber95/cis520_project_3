@@ -12,6 +12,8 @@
 /* Maximum size of process stack, in bytes. */
 #define STACK_MAX (1024 * 1024)
 
+#define PUSHA_SIZE 32
+
 /* Destroys a page, which must be in the current process's
    page table.  Used as a callback for hash_destroy(). */
 static void
@@ -52,9 +54,10 @@ page_for_addr (const void *address)
 
       /* No page.  Expand stack? */
       struct thread* cur_thread = thread_current();
-      if (address >= PHYS_BASE - STACK_MAX
-        && address >= cur_thread->user_esp - 32)
+      if (address >= PHYS_BASE - STACK_MAX && address >= cur_thread->user_esp - PUSHA_SIZE)
+      {
         return page_allocate ((void *) address, false);
+      }
     }
   return NULL;
 }
