@@ -476,8 +476,15 @@ static void sys_close(int fd)
 
 static mapid_t sys_mmap (int fd, void* addr)
 {
-  struct frame* frm = frame_create(addr);
-  return map_file(fd);
+  struct file* f = get_process_file(fd);
+  if ( f == NULL || 
+       (uint32_t)addr % PGSIZE != 0 ||
+       addr == 0 ||
+       !is_user_vadder(addr) ||
+       fd < 2 )
+    return -1;
+
+  return map_file(fd, addr);
 }
 
 static void sys_munmap(mapid_t mapping)

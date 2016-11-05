@@ -37,7 +37,6 @@ struct file_mapping
 void frame_init(void);
 
 void * frame_alloc(void);
-struct frame * frame_create(void * addr);
 void free_frame(void* addr);
 struct frame * frame_get(void * addr);
 void frame_swap(struct sup_page * page);

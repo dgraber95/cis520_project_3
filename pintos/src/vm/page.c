@@ -12,7 +12,7 @@
 
 typedef int mapid_t;
 
-struct frame * frame_create(void * addr);
+static struct frame * frame_create(void * addr);
 static struct frame * frame_get_next_eviction_candidate(void);
 static void frame_load(struct frame * frm, struct sup_page * page);
 static void frame_evict(struct frame * frm);
@@ -249,8 +249,10 @@ static void sup_page_backup(struct sup_page * page)
   // TODO: write the page out to its backing store
 }
 
-mapid_t map_file(int fd)
+mapid_t map_file(int fd, void* addr)
 {
+  frame_create(addr);
+
   struct file_mapping* fm = malloc(sizeof(struct file_mapping));
   fm->fd = fd;
   fm->map_id = next_map_id++;
@@ -270,6 +272,10 @@ void unmap_file(mapid_t map_id)
     if (map_id == fm->map_id)
     {
       list_remove(&fm->elem);
+      free_frame(fm->addr);
+      write(fm->fd, fm->addr, filesize(fm->fd));
+      free(fm);
+      return;
     }
   }
 }
