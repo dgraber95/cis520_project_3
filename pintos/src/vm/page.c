@@ -76,7 +76,7 @@ do_page_in (struct page *p)
   if (p->sector != (block_sector_t) -1) 
     {
       /* Get data from swap. */
-      swap_in (p); 
+      swap_in (p);
     }
   else if (p->file != NULL) 
     {
@@ -148,16 +148,29 @@ page_out (struct page *p)
      process to fault.  This must happen before checking the
      dirty bit, to prevent a race with the process dirtying the
      page. */
-
-/* add code here */
+  pagedir_clear_page(p->thread->pagedir, p->addr);
 
   /* Has the frame been modified? */
+  dirty = pagedir_is_dirty(p->thread->pagedir, p->addr);
 
-/* add code here */
+  /* Write dirty page back to swap. */
+  if(p->file == NULL)
+      ok = swap_out(p);
 
   /* Write frame contents to disk if necessary. */
+  else if (p->file != NULL)
+    {
+      if(!dirty)
+        ok = true;
+      else if (!p->private)
+        ok = file_write_at(p->file, p->frame->base, p->file_bytes, p->file_offset) == p->file_bytes;
+      else
+        ok = swap_out(p);
+    }
 
-/* add code here */
+  // No longer in a frame
+  if(ok)
+    p->frame = NULL;
 
   return ok;
 }
