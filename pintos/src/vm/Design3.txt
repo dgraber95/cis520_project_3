@@ -29,10 +29,22 @@ Alex Hamilton
 >> A1: In a few paragraphs, describe the existing code for locating the
 >> frame, if any, that contains the data of a given page.
 
+No real effort is made to locate a frame already containing a page. When
+a page fault occurs, page_in() is called which puts the appropriate page
+into a frame. For this, it rounds the faulting address down to a page boundary,
+looks up the page in the supplemental page table and then if it's not already
+in a frame, a frame is allocated (evicting a page if necessary) to house
+the page. After the page is put in a frame, pagedir_set_page() is used
+to point the virtual page address to the actual location in the frame.
+
 ---- SYNCHRONIZATION ----
 
 >> A2: When two user processes both need a new frame at the same time,
 >> how are races avoided?
+
+Races are avoided by acquiring a lock at the beginning of the
+allocation function and releasing it at the end. This ensures allocation
+occurs atomically.
 
 		       PAGING TO AND FROM DISK
 		       =======================
@@ -42,14 +54,26 @@ Alex Hamilton
 >> B1: When a frame is required but none is free, some frame must be
 >> evicted.  Describe the algorithm used to choose a frame to evict.
 
-The code loops through the array of frames, and calls pagedir_is_accessed
-to see if the frame' page was accessed recently. If the page was accessed 
+The code loops through the array of frames twice, and calls page_accessed_recently()
+to see if the frame's page was accessed recently. If the page was accessed 
 recently we do not evict this frame. If it was not accessed recently,
-then we evict the frame.
+then we evict the frame. page_accessed_recently() resets the page's accessed bit
+so that if all pages were accessed (and therefor not considered an eviction
+candidate), then the second time through the loop the first page will be unaccessed
+and that will be the one evicted.
 
 >> B2: Explain your heuristic for deciding whether a page fault for an
 >> invalid virtual address should cause the stack to be extended into
 >> the page that faulted.
+
+First we attempt to bring the page into a frame like a normal page access fault. If
+the page doesn't exist, we consider the possibility of an attempt at accessing
+part of the stack that has yet to be allocated. We check if the faulting address
+is between PHYS_BASE (where the stack starts) and PHYS_BASE - 1MB (an artificial
+stack size limit). If that condition is satisfied, we check if the fault occurred
+32 bytes below the current stack pointer. If this second condition is also satisfied,
+we can be reasonably certain that the fault is triggered by a PUSHA instruction
+and we go ahead and allocate the new page.
 
 			 MEMORY MAPPED FILES
 			 ===================
@@ -69,8 +93,21 @@ We did not add any 'stuct' or `struct' member, global or static variable,
 >> memory subsystem.  Explain how the page fault and eviction
 >> processes differ between swap pages and other pages.
 
+When we map a file we also allocate as many pages as the file needs with
+the function page_allocate. The page fault and eviction processes don't
+really differ between swap pages and other pages. The only difference is
+how pages are loaded into frames (swap_in() vs file_read_at()).
+
 >> C3: Explain how you determine whether a new file mapping overlaps
 >> any existing segment.
+
+To dertermine if a new file mapping overlaps an existing segment,
+we call the function hash_insert in our page_allocate function. This 
+function will search the hash bucket for the value that we have given
+it. If we find the element we will return it, if we do not, we will
+return NULL. If the function does not return NULL, then we know that 
+the mapping already exists, and we will free the pages resources and 
+return a NULL page from page_allocate.
 
 ---- RATIONALE ----
 
@@ -80,6 +117,12 @@ We did not add any 'stuct' or `struct' member, global or static variable,
 >> that much of their implementation can be shared.  Explain why your
 >> implementation either does or does not share much of the code for
 >> the two situations.
+
+These two situations are handled nearly identically. When pages are
+allocated, a flag in the page struct, "private," is set if the page
+belongs to a mmap. When paging out, if the "private" field is set, meaning
+it belongs to a mmap, the page is written back to the file, otherwise
+it's swapped out.
 
 			   SURVEY QUESTIONS
 			   ================
@@ -93,8 +136,6 @@ the quarter.
 >> In your opinion, was this assignment, or any one of the three problems
 >> in it, too easy or too hard?  Did it take too long or too little time?
 
-I liked this one more than the last projects - Nolan
-
 >> Did you find that working on a particular part of the assignment gave
 >> you greater insight into some aspect of OS design?
 
@@ -102,11 +143,7 @@ I liked this one more than the last projects - Nolan
 >> future quarters to help them solve the problems?  Conversely, did you
 >> find any of our guidance to be misleading?
 
-Make sure they know to start with the starter code instead of their own - Nolan
-
 >> Do you have any suggestions for the TAs to more effectively assist
 >> students, either for future quarters or the remaining projects?
-
-Make sure they know to start with the starter code instead of their own - Nolan
 
 >> Any other comments?
